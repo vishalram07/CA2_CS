@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File-Manager</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css" rel="stylesheet"> -->
+</head>
+
+<body>
+    <div class="container mx-auto flex flex-col justify-center items-center">
+        <h1 class="text-center text-4xl font-bold my-8">
+            AWS S3 Storage Manager
+        </h1>
+        <div class="border rounded-lg shadow-lg p-6 flex flex-col items-center mt-11">
+            <h2 class="text-2xl font-semibold mb-4">Upload Files</h2>
+            <div class="w-full max-w-sm mx-auto">
+                <div class="mt-4">
+                    <input type="file" multiple class="border border-gray-300 p-2 w-full rounded-lg" id="fileInput"
+                        required>
+                </div>
+                <div class="mt-4 flex justify-center">
+                    <button class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 flex flex-row justify-center gap-8 rounded-lg"
+                        onclick="uploadFiles('mypackage1')">Upload
+                        File
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6">
+                            <path fill-rule="evenodd"
+                                d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25Zm4.28 10.28a.75.75 0 0 0 0-1.06l-3-3a.75.75 0 1 0-1.06 1.06l1.72 1.72H8.25a.75.75 0 0 0 0 1.5h5.69l-1.72 1.72a.75.75 0 1 0 1.06 1.06l3-3Z"
+                                clip-rule="evenodd" />
+                        </svg>
+                    </button>
+
+                </div>
+            </div>
+        </div>
+        <a href="/file_list" class="mt-8 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">See
+            the List of files available</a>
+    </div>
+</body>
+<script src="https://sdk.amazonaws.com/js/aws-sdk-2.932.0.min.js"></script>
+<script >
+    var region = "ap-south-1"
+
+    AWS.config.update({
+        region: region,
+        credentials: new AWS.Credentials(accessKeyId, secretAccessKey)
+    })
+
+    var s3 = new AWS.S3()
+
+    function refreshFileList(bucketname) {
+        var tableBody = document.querySelector("#fileTable tbody");
+        tableBody.innerHTML = "";
+
+        s3.listObjectsV2({ Bucket: bucketname }, (err, data) => {
+            if (err) {
+                console.log("Error fetching file list", err);
+            }
+            else {
+                // console.log(data)
+                data.Contents.forEach((object) => {
+                    var fileRow = document.createElement('tr')
+                    var fileNameCell = document.createElement('td')
+                    fileNameCell.textContent = object.Key
+                    fileRow.appendChild(fileNameCell)
+
+                    var fileSizeCell = document.createElement("td");
+                    fileSizeCell.textContent = object.Size;
+                    fileRow.appendChild(fileSizeCell);
+
+                    var downloadCell = document.createElement('td');
+                    var downloadLink = document.createElement('a');
+                    downloadLink.href = s3.getSignedUrl("getObject", {
+                        Bucket: bucketname,
+                        Key: object.Key,
+                    });
+                    downloadLink.textContent = "Download"
+                    downloadCell.appendChild(downloadLink)
+                    fileRow.appendChild(downloadCell)
+
+                    var deleteCell = document.createElement('td')
+                    var deleteButton = document.createElement('button')
+                    deleteButton.textContent = 'Delete'
+                    deleteButton.addEventListener('click', () => {
+                        deleteFile(bucketname, object.Key)
+                    })
+                    deleteCell.appendChild(deleteButton)
+                    fileRow.appendChild(deleteCell)
+
+                    tableBody.appendChild(fileRow)
+                })
+            }
+        })
+    }
+
+    function deleteFile(bucketname, key) {
+        var params = {
+            Bucket: bucketname,
+            Key: key
+        }
+
+        s3.deleteObject(params, (err, data) => {
+            alert("File deleted Successfully!")
+            refreshFileList(bucketname)
+        })
+    }
+
+    function uploadFiles(bucketname) {
+        let files = document.getElementById('fileInput').files
+
+        var fileCount = files.length
+
+        for (var i = 0; i < fileCount; i++) {
+            var file = files[i];
+            var params = {
+                Bucket: bucketname,
+                Key: file.name,
+                Body: file
+            }
+
+            s3.upload(params, (err, data) => {
+                alert("File Uploaded successfully!")
+                refreshFileList(bucketname)
+            })
+        }
+    }
+
+    function goToHome() {
+        window.location.href = "/"; // Redirect to the home page
+    }
+
+    refreshFileList("mypackage1");
+</script>
+
+</html>
